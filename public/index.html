@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Item &amp; Purchase Management</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Item &amp; Purchase Management</h1>
+    <nav>
+      <button data-tab="types" class="tab active">Item Types</button>
+      <button data-tab="items" class="tab">Items</button>
+      <button data-tab="purchase" class="tab">Create Purchase</button>
+      <button data-tab="purchases" class="tab">Purchases</button>
+      <button data-tab="stock" class="tab">Stock</button>
+    </nav>
+  </header>
+
+  <div id="message" class="message hidden"></div>
+
+  <main>
+    <!-- ITEM TYPES -->
+    <section id="types" class="panel">
+      <h2>Item Types</h2>
+      <div class="form-row">
+        <input type="hidden" id="type-id">
+        <label>Type Name
+          <input type="text" id="type-name" placeholder="e.g. Electronics">
+        </label>
+        <button id="type-save" class="btn primary">Save</button>
+        <button id="type-cancel" class="btn hidden">Cancel</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Type Name</th><th>Actions</th></tr></thead>
+        <tbody id="types-body"></tbody>
+      </table>
+    </section>
+
+    <!-- ITEMS -->
+    <section id="items" class="panel hidden">
+      <h2>Item Master</h2>
+      <form id="item-form" class="form-grid">
+        <input type="hidden" id="item-id">
+        <label>Item Name
+          <input type="text" id="item-name" required>
+        </label>
+        <label>Item Type
+          <select id="item-type" required></select>
+        </label>
+        <label>Purchase Date
+          <input type="date" id="item-date" required>
+        </label>
+        <label>Stock Available
+          <input type="number" id="item-stock" min="0" step="1" required>
+        </label>
+        <label>Status
+          <select id="item-active" required>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </label>
+        <div class="form-actions">
+          <button type="submit" id="item-save" class="btn primary">Create Item</button>
+          <button type="button" id="item-cancel" class="btn hidden">Cancel</button>
+        </div>
+      </form>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Type</th><th>Purchase Date</th>
+              <th>Stock</th><th>Availability</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+      <div id="item-details" class="details hidden"></div>
+    </section>
+
+    <!-- CREATE / EDIT PURCHASE -->
+    <section id="purchase" class="panel hidden">
+      <h2 id="purchase-title">Create Purchase</h2>
+      <div class="form-grid">
+        <input type="hidden" id="purchase-edit-id">
+        <label>Order ID
+          <input type="text" id="purchase-order-id" value="Auto-generated" disabled>
+        </label>
+        <label>Purchase Date
+          <input type="date" id="purchase-date">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Item
+          <select id="line-item"></select>
+        </label>
+        <label>Quantity
+          <input type="number" id="line-qty" min="1" step="1" value="1">
+        </label>
+        <button id="line-add" class="btn">Add to Order</button>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th>Type</th><th>Quantity</th><th>Action</th></tr></thead>
+        <tbody id="lines-body"></tbody>
+      </table>
+      <div class="form-actions">
+        <button id="purchase-submit" class="btn primary">Submit Purchase</button>
+        <button id="purchase-cancel" class="btn hidden">Cancel Edit</button>
+      </div>
+    </section>
+
+    <!-- PURCHASE LIST + DETAILS -->
+    <section id="purchases" class="panel hidden">
+      <h2>Purchases</h2>
+      <table>
+        <thead>
+          <tr><th>Order ID</th><th>Date</th><th>Lines</th><th>Total Qty</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="purchases-body"></tbody>
+      </table>
+      <div id="purchase-details" class="details hidden"></div>
+    </section>
+
+    <!-- STOCK -->
+    <section id="stock" class="panel hidden">
+      <h2>Stock / Availability</h2>
+      <table>
+        <thead><tr><th>Item</th><th>Type</th><th>Current Stock</th><th>Availability</th></tr></thead>
+        <tbody id="stock-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
