@@ -1,13 +1,14 @@
 {
-<<<<<<< HEAD
   "name": "item-purchase-system",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-  "start": "node server.js",
-  "dev": "nodemon server.js"
-},
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "db:create": "psql -U postgres -h 127.0.0.1 -c \"CREATE DATABASE item_purchase_db\"",
+    "db:setup": "psql -U postgres -h 127.0.0.1 -d item_purchase_db -f db/schema.sql"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -16,35 +17,9 @@
     "cors": "^2.8.6",
     "dotenv": "^18.0.3",
     "express": "^5.2.1",
-    "mysql2": "^3.24.4"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-=======
-  "name": "onepage-website-react",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.3.3"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
->>>>>>> 371df25b754d7d1b951ff02b286a69de2776833a
   }
 }

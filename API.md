@@ -64,4 +64,5 @@ Create/Update body:
 | 400 | Validation error | `{"error":"Item name is required"}` |
 | 404 | Not found | `{"error":"Item not found"}` |
 | 409 | Business conflict | `{"error":"Insufficient stock for Laptop. Available: 8"}` |
-| 500 | Server error | `{"error":"Internal server error"}` |
+| 500 | Server error (e.g. schema missing) | `{"error":"Database schema is missing. Run: npm run db:setup"}` |
+| 503 | Database unreachable / bad credentials | `{"error":"Database not reachable. ... DB_HOST=127.0.0.1 ..."}` |

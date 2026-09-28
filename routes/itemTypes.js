@@ -4,7 +4,7 @@ const pool = require('../db/pool');
 // GET /api/item-types: sabhi types
 router.get('/', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       'SELECT id, type_name FROM item_types ORDER BY type_name'
     );
     res.json(rows);
@@ -17,12 +17,12 @@ router.post('/', async (req, res, next) => {
     const typeName = (req.body.type_name || '').trim();
     if (!typeName) return res.status(400).json({ error: 'Item type name is required' });
 
-    const [result] = await pool.query(
-      'INSERT INTO item_types (type_name) VALUES (?)', [typeName]
+    const { rows } = await pool.query(
+      'INSERT INTO item_types (type_name) VALUES ($1) RETURNING id', [typeName]
     );
-    res.status(201).json({ id: result.insertId, type_name: typeName });
+    res.status(201).json({ id: rows[0].id, type_name: typeName });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY')
+    if (err.code === '23505') // unique_violation
       return res.status(409).json({ error: 'Item type already exists' });
     next(err);
   }
@@ -38,15 +38,15 @@ router.put('/:id', async (req, res, next) => {
     const typeName = (req.body.type_name || '').trim();
     if (!typeName) return res.status(400).json({ error: 'Item type name is required' });
 
-    const [result] = await pool.query(
-      'UPDATE item_types SET type_name = ? WHERE id = ?', [typeName, id]
+    const { rowCount } = await pool.query(
+      'UPDATE item_types SET type_name = $1 WHERE id = $2', [typeName, id]
     );
-    if (result.affectedRows === 0)
+    if (rowCount === 0)
       return res.status(404).json({ error: 'Item type not found' });
 
     res.json({ id, type_name: typeName });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY')
+    if (err.code === '23505') // unique_violation
       return res.status(409).json({ error: 'Item type already exists' });
     next(err);
   }
@@ -59,14 +59,14 @@ router.delete('/:id', async (req, res, next) => {
     if (!Number.isInteger(id) || id <= 0)
       return res.status(400).json({ error: 'Invalid item type id' });
 
-    const [used] = await pool.query(
-      'SELECT COUNT(*) AS cnt FROM items WHERE item_type_id = ?', [id]
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS cnt FROM items WHERE item_type_id = $1', [id]
     );
-    if (used[0].cnt > 0)
+    if (rows[0].cnt > 0)
       return res.status(409).json({ error: 'Item type is in use by items and cannot be deleted' });
 
-    const [result] = await pool.query('DELETE FROM item_types WHERE id = ?', [id]);
-    if (result.affectedRows === 0)
+    const { rowCount } = await pool.query('DELETE FROM item_types WHERE id = $1', [id]);
+    if (rowCount === 0)
       return res.status(404).json({ error: 'Item type not found' });
 
     res.json({ message: 'Item type deleted' });

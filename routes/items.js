@@ -26,7 +26,7 @@ async function validateItem(body) {
 
   const typeId = parseId(body.item_type_id);
   if (!typeId) return { error: 'Invalid item type' };
-  const [types] = await pool.query('SELECT id FROM item_types WHERE id = ?', [typeId]);
+  const { rows: types } = await pool.query('SELECT id FROM item_types WHERE id = $1', [typeId]);
   if (types.length === 0) return { error: 'Invalid item type' };
 
   const date = (body.purchase_date || '').toString().trim();
@@ -41,8 +41,9 @@ async function validateItem(body) {
 
   if (body.active === undefined || body.active === null)
     return { error: 'Active status is required' };
-  const active = (body.active === true || body.active === 1 || body.active === '1' ||
-                  body.active === 'true') ? 1 : 0;
+  // PostgreSQL BOOLEAN column: real true/false hi bhejna hai (1/0 integer reject hota hai)
+  const active = body.active === true || body.active === 1 ||
+                 body.active === '1' || body.active === 'true';
 
   return { data: { name, typeId, date, stock, active } };
 }
@@ -50,7 +51,7 @@ async function validateItem(body) {
 // GET /api/items: sabhi items (JOIN ke saath)
 router.get('/', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(ITEM_SELECT + ' ORDER BY i.id');
+    const { rows } = await pool.query(ITEM_SELECT + ' ORDER BY i.id');
     res.json(rows);
   } catch (err) { next(err); }
 });
@@ -61,7 +62,7 @@ router.get('/:id', async (req, res, next) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: 'Invalid item id' });
 
-    const [rows] = await pool.query(ITEM_SELECT + ' WHERE i.id = ?', [id]);
+    const { rows } = await pool.query(ITEM_SELECT + ' WHERE i.id = $1', [id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Item not found' });
     res.json(rows[0]);
   } catch (err) { next(err); }
@@ -74,12 +75,13 @@ router.post('/', async (req, res, next) => {
     if (v.error) return res.status(400).json({ error: v.error });
     const d = v.data;
 
-    const [result] = await pool.query(
+    const { rows: inserted } = await pool.query(
       `INSERT INTO items (name, purchase_date, stock_available, item_type_id, active)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
       [d.name, d.date, d.stock, d.typeId, d.active]
     );
-    const [rows] = await pool.query(ITEM_SELECT + ' WHERE i.id = ?', [result.insertId]);
+    const { rows } = await pool.query(ITEM_SELECT + ' WHERE i.id = $1', [inserted[0].id]);
     res.status(201).json(rows[0]);
   } catch (err) { next(err); }
 });
@@ -94,16 +96,16 @@ router.put('/:id', async (req, res, next) => {
     if (v.error) return res.status(400).json({ error: v.error });
     const d = v.data;
 
-    const [result] = await pool.query(
-      `UPDATE items SET name = ?, purchase_date = ?, stock_available = ?,
-                        item_type_id = ?, active = ?
-       WHERE id = ?`,
+    const { rowCount } = await pool.query(
+      `UPDATE items SET name = $1, purchase_date = $2, stock_available = $3,
+                        item_type_id = $4, active = $5
+       WHERE id = $6`,
       [d.name, d.date, d.stock, d.typeId, d.active, id]
     );
-    if (result.affectedRows === 0)
+    if (rowCount === 0)
       return res.status(404).json({ error: 'Item not found' });
 
-    const [rows] = await pool.query(ITEM_SELECT + ' WHERE i.id = ?', [id]);
+    const { rows } = await pool.query(ITEM_SELECT + ' WHERE i.id = $1', [id]);
     res.json(rows[0]);
   } catch (err) { next(err); }
 });
@@ -116,13 +118,13 @@ router.patch('/:id/status', async (req, res, next) => {
     if (typeof req.body.active !== 'boolean')
       return res.status(400).json({ error: 'active must be true or false' });
 
-    const [result] = await pool.query(
-      'UPDATE items SET active = ? WHERE id = ?', [req.body.active ? 1 : 0, id]
+    const { rowCount } = await pool.query(
+      'UPDATE items SET active = $1 WHERE id = $2', [req.body.active, id]
     );
-    if (result.affectedRows === 0)
+    if (rowCount === 0)
       return res.status(404).json({ error: 'Item not found' });
 
-    const [rows] = await pool.query(ITEM_SELECT + ' WHERE i.id = ?', [id]);
+    const { rows } = await pool.query(ITEM_SELECT + ' WHERE i.id = $1', [id]);
     res.json(rows[0]);
   } catch (err) { next(err); }
 });
@@ -133,18 +135,18 @@ router.delete('/:id', async (req, res, next) => {
     const id = parseId(req.params.id);
     if (!id) return res.status(400).json({ error: 'Invalid item id' });
 
-    const [exists] = await pool.query('SELECT id FROM items WHERE id = ?', [id]);
+    const { rows: exists } = await pool.query('SELECT id FROM items WHERE id = $1', [id]);
     if (exists.length === 0) return res.status(404).json({ error: 'Item not found' });
 
-    const [used] = await pool.query(
-      'SELECT COUNT(*) AS cnt FROM purchase_items WHERE item_id = ?', [id]
+    const { rows: used } = await pool.query(
+      'SELECT COUNT(*)::int AS cnt FROM purchase_items WHERE item_id = $1', [id]
     );
     if (used[0].cnt > 0)
       return res.status(409).json({
         error: 'Item is used in purchase history and cannot be deleted. Mark it Inactive instead.'
       });
 
-    await pool.query('DELETE FROM items WHERE id = ?', [id]);
+    await pool.query('DELETE FROM items WHERE id = $1', [id]);
     res.json({ message: 'Item deleted' });
   } catch (err) { next(err); }
 });

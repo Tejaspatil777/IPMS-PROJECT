@@ -7,8 +7,7 @@ Purchases, stock availability and purchase history.
 
 - Node.js v20 or higher
 - npm v10 or higher
-- MySQL Server 8.0.16 or higher (CHECK constraints need 8.0.16+)
-- MySQL Workbench (optional)
+- PostgreSQL 16 or higher, service running, `psql` on PATH
 
 ## Setup
 
@@ -18,30 +17,42 @@ Purchases, stock availability and purchase history.
 npm install
 ```
 
-### 2. Create the database
+### 2. Create the database and load the schema
 
-Using MySQL command line:
+PostgreSQL mein `CREATE DATABASE` ya `USE` SQL script ke andar nahi chal sakta,
+isliye pehle database banate hain, phir schema load karte hain:
 
 ```bash
-mysql -u root -p < db/schema.sql
+psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE item_purchase_db"
+psql -U postgres -h 127.0.0.1 -d item_purchase_db -f db/schema.sql
 ```
 
-Or in MySQL Workbench: File > Open SQL Script > `db/schema.sql` > Execute.
+Shortcut (wahi commands, npm scripts ke through):
 
-This creates the database `item_purchase_db`, all 4 tables and sample data
+```bash
+npm run db:create
+npm run db:setup
+```
+
+This creates all 4 tables, the `updated_at` trigger and sample data
 (5 item types, 3 items).
 
 ### 3. Configure environment
 
-Copy `.env.example` to `.env` and set your MySQL credentials:
+Copy `.env.example` to `.env` and set your PostgreSQL credentials:
 
 ```
 PORT=3000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_mysql_password
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
 DB_NAME=item_purchase_db
 ```
+
+`DB_HOST=127.0.0.1` rakho, `localhost` nahi: Node 17+ `localhost` ko pehle IPv6
+`::1` pe resolve karta hai, aur agar PostgreSQL sirf IPv4 pe listen kar raha ho
+to connection `ECONNREFUSED` se fail hota hai.
 
 ### 4. Start the application
 
@@ -57,8 +68,8 @@ same Express server, so there is no separate frontend command.
 ## Project Structure
 
 ```
-db/schema.sql        Database schema + sample data
-db/pool.js           MySQL connection pool
+db/schema.sql        PostgreSQL schema, trigger + sample data
+db/pool.js           PostgreSQL connection pool (pg)
 routes/              REST API routes (itemTypes, items, purchases)
 public/              Frontend (HTML, CSS, JS)
 server.js            Express app entry point
@@ -67,10 +78,21 @@ API.md               API documentation
 
 ## Key Design Decisions
 
-- **Transactions:** Purchase create and update run inside a MySQL transaction
-  (BEGIN, validate, insert, stock update, COMMIT, ROLLBACK on failure).
-- **Row locking:** `SELECT ... FOR UPDATE` on items prevents two simultaneous
-  purchases from making stock negative.
+- **Transactions:** Purchase create and update run inside a PostgreSQL
+  transaction (`BEGIN`, validate, insert, stock update, `COMMIT`, `ROLLBACK`
+  on failure) using a single pooled client.
+- **Row locking:** `SELECT ... FOR UPDATE` on items (via
+  `WHERE id = ANY($1::int[])`) prevents two simultaneous purchases from making
+  stock negative.
+- **Order numbering:** `order_id` (`PO-00001`) is generated from the
+  `purchases.id` identity sequence with `nextval(...)`, so it is atomic and
+  race-free, and always matches the row id. (`MAX(id)+1 ... FOR UPDATE` is not
+  allowed in PostgreSQL because `FOR UPDATE` cannot be used with aggregates.)
+- **`updated_at`:** Maintained by a `BEFORE UPDATE` trigger
+  (`set_updated_at()`), since PostgreSQL has no `ON UPDATE CURRENT_TIMESTAMP`.
+- **Driver type parsers:** `db/pool.js` keeps `DATE`/`TIMESTAMP` as strings
+  (`'YYYY-MM-DD'`) and converts bigint `COUNT()`/`SUM()` results to numbers, so
+  the API JSON stays exactly the same shape for the frontend.
 - **No purchase deletion:** Purchases are historical data. There is no DELETE
   purchase API and no Delete button in the UI.
 - **Item deletion rule:** An item used in any purchase cannot be deleted
@@ -108,3 +130,17 @@ curl -X POST http://localhost:3000/api/purchases \
 ```
 
 See `API.md` for all endpoints.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Any API returns `503 Database not reachable` | PostgreSQL service stopped, or wrong `DB_HOST`/`DB_PORT` | `Get-Service postgresql*` → start it; keep `DB_HOST=127.0.0.1` (not `localhost`) |
+| `503 Database rejected the credentials` | Wrong `DB_USER`/`DB_PASSWORD` in `.env` | Fix `.env` and restart `npm start` (env is read at boot) |
+| `500 Database not found. Run: npm run db:create` | `item_purchase_db` does not exist | `npm run db:create` |
+| `500 Database schema is missing. Run: npm run db:setup` | Tables/trigger not created | `npm run db:setup` |
+| `409 Duplicate value: record already exists` | Duplicate type name or duplicate item in one order | Expected behaviour |
+| `400 Invalid value supplied` | Bad id/date in request body | Send `YYYY-MM-DD` dates, positive integer ids |
+| `favicon.ico 404` | No favicon file | Harmless (suppressed via `<link rel="icon" href="data:,">`) |
+
+`.env` changes need a server restart unless you run `npm run dev` (nodemon).
