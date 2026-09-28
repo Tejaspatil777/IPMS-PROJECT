@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "item-purchase-system",
   "version": "1.0.0",
   "description": "",
@@ -19,5 +20,31 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+=======
+  "name": "onepage-website-react",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.3.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+>>>>>>> 371df25b754d7d1b951ff02b286a69de2776833a
   }
 }
