@@ -74,6 +74,7 @@ routes/              REST API routes (itemTypes, items, purchases)
 public/              Frontend (HTML, CSS, JS)
 server.js            Express app entry point
 API.md               API documentation
+PROJECT.md           Full architecture / tech stack documentation
 ```
 
 ## Key Design Decisions
